@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Murder at Midnight — Mystery Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Crimson+Pro:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1208;
+    --paper: #f5f0e8;
+    --aged: #e8dfc8;
+    --sepia: #c4a882;
+    --blood: #8b1a1a;
+    --gold: #b8860b;
+    --shadow: rgba(26,18,8,0.15);
+    --font-display: 'Playfair Display', Georgia, serif;
+    --font-body: 'Crimson Pro', Georgia, serif;
+    --font-mono: 'Courier Prime', Courier, monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0d0a06;
+    color: var(--ink);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Noise texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.4;
+  }
+
+  /* Header */
+  .site-header {
+    background: var(--ink);
+    border-bottom: 3px solid var(--blood);
+    padding: 1.5rem 2rem;
+    text-align: center;
+    position: relative;
+  }
+  .site-header::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 0; right: 0;
+    height: 3px;
+    background: var(--gold);
+    opacity: 0.5;
+  }
+  .site-title {
+    font-family: var(--font-display);
+    font-size: clamp(1.8rem, 5vw, 3rem);
+    color: var(--paper);
+    letter-spacing: 0.05em;
+    line-height: 1.1;
+  }
+  .site-title span { color: var(--blood); font-style: italic; }
+  .site-sub {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--sepia);
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    margin-top: 0.4rem;
+  }
+
+  /* Nav */
+  .nav {
+    background: #120e08;
+    border-bottom: 1px solid rgba(196,168,130,0.2);
+    display: flex;
+    justify-content: center;
+    gap: 0;
+  }
+  .nav-btn {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--sepia);
+    background: none;
+    border: none;
+    border-right: 1px solid rgba(196,168,130,0.2);
+    padding: 0.85rem 1.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .nav-btn:first-child { border-left: 1px solid rgba(196,168,130,0.2); }
+  .nav-btn:hover { color: var(--paper); background: rgba(196,168,130,0.07); }
+  .nav-btn.active {
+    color: var(--paper);
+    background: rgba(139,26,26,0.15);
+  }
+  .nav-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--blood);
+  }
+
+  /* Main content */
+  .main { max-width: 820px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+  /* Panel */
+  .panel { display: none; }
+  .panel.active { display: block; animation: fadeUp 0.3s ease; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+  /* Paper card */
+  .paper {
+    background: var(--paper);
+    border: 1px solid var(--sepia);
+    border-radius: 2px;
+    padding: 1.75rem 2rem;
+    margin-bottom: 1.25rem;
+    position: relative;
+    box-shadow: 3px 3px 12px var(--shadow), inset 0 0 40px rgba(196,168,130,0.08);
+  }
+  .paper::before {
+    content: '';
+    position: absolute;
+    top: 6px; left: 6px; right: -6px; bottom: -6px;
+    background: rgba(26,18,8,0.12);
+    z-index: -1;
+    border-radius: 2px;
+  }
+
+  /* Section titles */
+  .section-title {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    color: var(--ink);
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--sepia);
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+  }
+  .section-title .count {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--sepia);
+    letter-spacing: 0.1em;
+  }
+
+  /* Form elements */
+  label {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #6b5a3e;
+    display: block;
+    margin-bottom: 0.35rem;
+  }
+  input[type="text"], textarea, select {
+    width: 100%;
+    background: #faf6ec;
+    border: 1px solid var(--sepia);
+    border-radius: 1px;
+    padding: 0.6rem 0.75rem;
+    font-family: var(--font-body);
+    font-size: 1rem;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  input[type="text"]:focus, textarea:focus, select:focus {
+    border-color: var(--blood);
+    box-shadow: 0 0 0 2px rgba(139,26,26,0.1);
+  }
+  textarea { resize: vertical; min-height: 70px; }
+  select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b5a3e' stroke-width='1.5' fill='none'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.75rem center; padding-right: 2rem; }
+
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+  .form-field { margin-bottom: 1rem; }
+
+  /* Tags */
+  .tags-wrap { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 0.4rem; }
+  .tag {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    padding: 5px 11px;
+    border: 1px solid var(--sepia);
+    border-radius: 1px;
+    cursor: pointer;
+    background: transparent;
+    color: #6b5a3e;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .tag:hover { background: rgba(184,134,11,0.1); border-color: var(--gold); color: var(--ink); }
+  .tag.on { background: var(--blood); border-color: var(--blood); color: var(--paper); }
+
+  /* Color picker */
+  .color-row { display: flex; gap: 8px; margin-top: 0.4rem; }
+  .col-dot {
+    width: 26px; height: 26px; border-radius: 50%; cursor: pointer;
+    border: 2px solid transparent; transition: transform 0.15s;
+  }
+  .col-dot.on { border-color: var(--ink); transform: scale(1.15); }
+
+  /* Buttons */
+  .btn-primary {
+    width: 100%;
+    background: var(--blood);
+    color: var(--paper);
+    border: none;
+    padding: 0.9rem 1.5rem;
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-style: italic;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    border-radius: 1px;
+    transition: all 0.2s;
+    margin-top: 0.5rem;
+  }
+  .btn-primary:hover { background: #6e1515; }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-secondary {
+    background: transparent;
+    border: 1px solid var(--sepia);
+    color: #6b5a3e;
+    padding: 0.5rem 1.1rem;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 1px;
+    transition: all 0.15s;
+  }
+  .btn-secondary:hover { background: rgba(196,168,130,0.1); border-color: var(--gold); color: var(--ink); }
+
+  /* Character cards */
+  .char-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
+  .char-card {
+    background: var(--paper);
+    border: 1px solid var(--sepia);
+    padding: 1rem;
+    position: relative;
+    border-radius: 1px;
+  }
+  .char-avatar {
+    width: 42px; height: 42px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display); font-size: 1rem; font-weight: 700;
+    margin-bottom: 0.6rem;
+    border: 2px solid currentColor;
+  }
+  .char-name { font-family: var(--font-display); font-size: 1.05rem; margin-bottom: 0.4rem; }
+  .char-note { font-size: 0.82rem; color: #6b5a3e; font-style: italic; margin-top: 0.4rem; }
+  .char-remove {
+    position: absolute; top: 8px; right: 10px;
+    background: none; border: none; color: #aaa; cursor: pointer;
+    font-size: 1.1rem; line-height: 1; padding: 2px 4px;
+    transition: color 0.15s;
+  }
+  .char-remove:hover { color: var(--blood); }
+  .pill {
+    display: inline-block; font-family: var(--font-mono); font-size: 0.62rem;
+    letter-spacing: 0.06em; padding: 2px 7px; border-radius: 10px; margin: 2px;
+  }
+  .pill-r { background: rgba(139,26,26,0.12); color: var(--blood); }
+  .pill-g { background: rgba(11,134,80,0.1); color: #0b5e38; }
+
+  /* Warning */
+  .warning { font-family: var(--font-mono); font-size: 0.75rem; color: var(--blood); margin: 0.5rem 0; letter-spacing: 0.05em; }
+
+  /* Loading */
+  .loading-wrap { text-align: center; padding: 4rem 1rem; }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 2px solid rgba(196,168,130,0.3);
+    border-top-color: var(--blood);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+    margin: 0 auto 1.5rem;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-msg { font-family: var(--font-display); font-style: italic; font-size: 1.1rem; color: var(--sepia); }
+
+  /* Case file */
+  .case-file { background: var(--paper); color: var(--ink); }
+
+  .cf-toolbar {
+    display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;
+    margin-bottom: 1.5rem;
+  }
+
+  .case-paper {
+    background: var(--paper);
+    border: 1px solid var(--sepia);
+    padding: 2.5rem 3rem;
+    position: relative;
+    box-shadow: 3px 3px 18px var(--shadow);
+  }
+
+  .cf-stamp {
+    position: absolute; top: 2rem; right: 2.5rem;
+    border: 2px solid var(--blood); color: var(--blood);
+    font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.2em;
+    padding: 6px 12px; text-transform: uppercase;
+    transform: rotate(5deg); opacity: 0.7;
+  }
+
+  .cf-header { text-align: center; border-bottom: 2px solid var(--ink); padding-bottom: 1.5rem; margin-bottom: 2rem; }
+  .cf-eyebrow {
+    font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.3em;
+    text-transform: uppercase; color: var(--sepia); margin-bottom: 0.5rem;
+  }
+  .cf-title {
+    font-family: var(--font-display); font-size: clamp(1.5rem, 4vw, 2.4rem);
+    font-weight: 700; line-height: 1.2; margin-bottom: 0.5rem;
+  }
+  .cf-meta { font-family: var(--font-mono); font-size: 0.75rem; color: #6b5a3e; letter-spacing: 0.08em; }
+
+  .cf-section { margin-bottom: 2rem; }
+  .cf-section-title {
+    font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.25em;
+    text-transform: uppercase; color: var(--sepia);
+    border-bottom: 1px solid rgba(196,168,130,0.5); padding-bottom: 0.4rem; margin-bottom: 1rem;
+  }
+  .cf-body { font-size: 1.05rem; line-height: 1.75; }
+  .cf-body p { margin-bottom: 0.75rem; }
+
+  .cf-vitals {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+    border: 1px solid var(--sepia); margin-bottom: 1.5rem;
+  }
+  .cf-vital { padding: 0.75rem 1rem; background: #faf6ec; }
+  .cf-vital:not(:last-child) { border-right: 1px solid var(--sepia); }
+  .cf-vital-label { font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--sepia); margin-bottom: 0.25rem; }
+  .cf-vital-val { font-family: var(--font-display); font-size: 1rem; }
+
+  .suspect-table { width: 100%; border-collapse: collapse; }
+  .suspect-table th {
+    font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.15em;
+    text-transform: uppercase; color: var(--sepia); padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--sepia); text-align: left; background: #faf6ec;
+  }
+  .suspect-table td {
+    font-size: 0.92rem; padding: 0.65rem 0.75rem;
+    border-bottom: 1px solid rgba(196,168,130,0.3); vertical-align: top; line-height: 1.5;
+  }
+  .suspect-table tr:last-child td { border-bottom: none; }
+  .suspect-table tr:hover td { background: rgba(196,168,130,0.1); }
+  .suspect-name-cell { font-family: var(--font-display); font-weight: 700; font-size: 1rem; }
+
+  .clue-list { list-style: none; }
+  .clue-item { display: flex; gap: 1rem; padding: 0.85rem 0; border-bottom: 1px solid rgba(196,168,130,0.3); align-items: flex-start; }
+  .clue-item:last-child { border-bottom: none; }
+  .clue-num {
+    width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--ink);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono); font-size: 0.72rem; flex-shrink: 0; font-weight: 700;
+  }
+  .clue-loc { font-family: var(--font-mono); font-size: 0.72rem; color: var(--sepia); letter-spacing: 0.08em; margin-bottom: 0.2rem; }
+  .clue-desc { font-size: 0.95rem; line-height: 1.6; }
+
+  .solution-wrap { position: relative; cursor: pointer; }
+  .solution-inner { background: #faf6ec; border: 1px solid var(--sepia); padding: 1.25rem 1.5rem; border-radius: 1px; }
+  .solution-inner.blurred { filter: blur(7px); user-select: none; pointer-events: none; }
+  .solution-reveal-label {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 6px;
+    font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.15em;
+    text-transform: uppercase; color: var(--sepia); cursor: pointer;
+  }
+  .solution-reveal-label svg { opacity: 0.5; }
+  .solution-killer { font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem; }
+  .solution-text { font-size: 0.95rem; line-height: 1.7; }
+
+  .real-case-link {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--blood); text-decoration: none; border-bottom: 1px solid currentColor;
+    padding-bottom: 1px; transition: opacity 0.15s;
+  }
+  .real-case-link:hover { opacity: 0.7; }
+
+  /* Saved cases */
+  .saved-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0.9rem 0; border-bottom: 1px solid rgba(196,168,130,0.3);
+  }
+  .saved-item:last-child { border-bottom: none; }
+  .saved-title { font-family: var(--font-display); font-size: 1rem; margin-bottom: 0.2rem; }
+  .saved-meta { font-family: var(--font-mono); font-size: 0.65rem; color: var(--sepia); letter-spacing: 0.08em; }
+  .saved-actions { display: flex; gap: 0.5rem; }
+
+  .empty { text-align: center; padding: 3rem 1rem; font-family: var(--font-display); font-style: italic; color: var(--sepia); font-size: 1.1rem; }
+
+  /* Print */
+  /* API Key Modal */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(13,10,6,0.92);
+    z-index: 10000; display: flex; align-items: center; justify-content: center;
+    padding: 1.5rem; animation: fadeIn 0.25s ease;
+  }
+  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+  .modal-box {
+    background: var(--paper); border: 1px solid var(--sepia);
+    max-width: 480px; width: 100%; padding: 2.5rem 2rem;
+    position: relative; box-shadow: 4px 4px 24px rgba(0,0,0,0.5);
+  }
+  .modal-box::before {
+    content: ''; position: absolute;
+    top: 8px; left: 8px; right: -8px; bottom: -8px;
+    background: rgba(26,18,8,0.2); z-index: -1;
+  }
+  .modal-title { font-family: var(--font-display); font-size: 1.6rem; margin-bottom: 0.4rem; }
+  .modal-sub { font-family: var(--font-mono); font-size: 0.72rem; color: var(--sepia); letter-spacing: 0.1em; margin-bottom: 1.5rem; line-height: 1.6; }
+  .modal-steps { margin-bottom: 1.5rem; }
+  .modal-step { display: flex; gap: 0.75rem; align-items: flex-start; margin-bottom: 0.75rem; font-size: 0.92rem; line-height: 1.5; }
+  .modal-step-num { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--blood); color: var(--blood); display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 0.7rem; flex-shrink: 0; margin-top: 1px; }
+  .modal-link { color: var(--blood); text-decoration: underline; }
+  .key-input-wrap { position: relative; margin-bottom: 0.75rem; }
+  .key-input-wrap input { padding-right: 3rem; font-family: var(--font-mono); font-size: 0.85rem; letter-spacing: 0.03em; }
+  .key-toggle { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--sepia); font-size: 0.75rem; font-family: var(--font-mono); letter-spacing: 0.05em; }
+  .key-toggle:hover { color: var(--ink); }
+  .modal-note { font-family: var(--font-mono); font-size: 0.68rem; color: #6b5a3e; letter-spacing: 0.06em; line-height: 1.6; margin-bottom: 1.5rem; }
+  .modal-note strong { color: var(--blood); }
+  .key-status { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.08em; padding: 0.4rem 0; }
+  .key-status.ok { color: #1a6b3a; }
+  .key-status.err { color: var(--blood); }
+
+  /* Key indicator in header */
+  .key-indicator {
+    position: absolute; right: 1.5rem; top: 50%; transform: translateY(-50%);
+    font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.1em;
+    text-transform: uppercase; cursor: pointer; padding: 4px 10px;
+    border: 1px solid rgba(196,168,130,0.3); border-radius: 1px;
+    transition: all 0.15s;
+  }
+  .key-indicator.set { color: #4a9a6a; border-color: rgba(74,154,106,0.4); }
+  .key-indicator.unset { color: var(--blood); border-color: rgba(139,26,26,0.4); animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.55} }
+  .key-indicator:hover { background: rgba(196,168,130,0.08); }
+
+  @media print {
+    body { background: white; }
+    body::before { display: none; }
+    .site-header, .nav, .cf-toolbar, .no-print { display: none !important; }
+    .main { max-width: 100%; padding: 0; }
+    .panel { display: block !important; }
+    .paper, .case-paper { box-shadow: none; border: 1px solid #ccc; }
+    #panel-generate { display: block !important; }
+    #panel-characters, #panel-saved { display: none !important; }
+  }
+
+  @media (max-width: 600px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .cf-vitals { grid-template-columns: 1fr; }
+    .cf-vital:not(:last-child) { border-right: none; border-bottom: 1px solid var(--sepia); }
+    .case-paper { padding: 1.5rem 1.25rem; }
+    .suspect-table td, .suspect-table th { padding: 0.5rem; font-size: 0.82rem; }
+    .cf-stamp { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header" style="position:relative;">
+  <h1 class="site-title">Murder at <span>Midnight</span></h1>
+  <p class="site-sub">Personalised mystery case file generator</p>
+  <div class="key-indicator unset no-print" id="key-indicator" onclick="openKeyModal()" title="API Key settings">&#9767; API Key</div>
+</header>
+
+<!-- API KEY MODAL -->
+<div class="modal-backdrop" id="key-modal" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-title">API Key Setup</div>
+    <p class="modal-sub">This app uses the Anthropic API to generate mysteries. You need a free API key — it stays in your browser only and is never shared.</p>
+    <div class="modal-steps">
+      <div class="modal-step"><div class="modal-step-num">1</div><div>Visit <a class="modal-link" href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a> and create a free account.</div></div>
+      <div class="modal-step"><div class="modal-step-num">2</div><div>Go to <strong>API Keys</strong> and click <strong>Create Key</strong>. Copy it.</div></div>
+      <div class="modal-step"><div class="modal-step-num">3</div><div>Paste it below and click Save.</div></div>
+    </div>
+    <div class="key-input-wrap">
+      <input type="password" id="key-input" placeholder="sk-ant-api03-..." autocomplete="off" spellcheck="false">
+      <button class="key-toggle" onclick="toggleKeyVis()" id="key-toggle-btn">show</button>
+    </div>
+    <p class="modal-note">Your key is saved to <strong>your browser only</strong> (localStorage). Nobody else can see it. You can clear it any time from this screen.</p>
+    <div id="key-status" class="key-status"></div>
+    <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:0.5rem;">
+      <button class="btn-primary" style="flex:1;min-width:120px;margin-top:0;" onclick="saveKey()">Save key</button>
+      <button class="btn-secondary" onclick="clearKey()">Clear key</button>
+      <button class="btn-secondary" onclick="closeKeyModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<nav class="nav">
+  <button class="nav-btn active" onclick="showPanel('characters')">I. Characters</button>
+  <button class="nav-btn" onclick="showPanel('generate')">II. Generate</button>
+  <button class="nav-btn" onclick="showPanel('saved')">III. Case Files</button>
+</nav>
+
+<main class="main">
+
+  <!-- CHARACTERS -->
+  <div class="panel active" id="panel-characters">
+    <div class="paper">
+      <div class="section-title">Add a suspect</div>
+      <div class="form-grid">
+        <div class="form-field">
+          <label>Name</label>
+          <input type="text" id="char-name" placeholder="e.g. Jamie, Priya, Uncle Gerald…">
+        </div>
+        <div class="form-field">
+          <label>Avatar colour</label>
+          <div class="color-row" id="color-row">
+            <div class="col-dot on" data-c="#8b1a1a" style="background:#8b1a1a"></div>
+            <div class="col-dot" data-c="#1a4f8b" style="background:#1a4f8b"></div>
+            <div class="col-dot" data-c="#1a6b3a" style="background:#1a6b3a"></div>
+            <div class="col-dot" data-c="#7b3a8b" style="background:#7b3a8b"></div>
+            <div class="col-dot" data-c="#8b6a1a" style="background:#8b6a1a"></div>
+            <div class="col-dot" data-c="#1a7b7b" style="background:#1a7b7b"></div>
+            <div class="col-dot" data-c="#3a3a3a" style="background:#3a3a3a"></div>
+          </div>
+        </div>
+      </div>
+      <div class="form-field">
+        <label>Personality traits</label>
+        <div class="tags-wrap" id="trait-tags">
+          <span class="tag" onclick="toggleTag(this)">Sarcastic</span>
+          <span class="tag" onclick="toggleTag(this)">Charming</span>
+          <span class="tag" onclick="toggleTag(this)">Clumsy</span>
+          <span class="tag" onclick="toggleTag(this)">Paranoid</span>
+          <span class="tag" onclick="toggleTag(this)">Nosy</span>
+          <span class="tag" onclick="toggleTag(this)">Loyal</span>
+          <span class="tag" onclick="toggleTag(this)">Devious</span>
+          <span class="tag" onclick="toggleTag(this)">Dramatic</span>
+          <span class="tag" onclick="toggleTag(this)">Shy</span>
+          <span class="tag" onclick="toggleTag(this)">Bossy</span>
+          <span class="tag" onclick="toggleTag(this)">Witty</span>
+          <span class="tag" onclick="toggleTag(this)">Secretive</span>
+          <span class="tag" onclick="toggleTag(this)">Nervous</span>
+          <span class="tag" onclick="toggleTag(this)">Pompous</span>
+        </div>
+      </div>
+      <div class="form-field">
+        <label>Hobbies &amp; interests</label>
+        <div class="tags-wrap" id="hobby-tags">
+          <span class="tag" onclick="toggleTag(this)">Gardening</span>
+          <span class="tag" onclick="toggleTag(this)">Cooking</span>
+          <span class="tag" onclick="toggleTag(this)">Chess</span>
+          <span class="tag" onclick="toggleTag(this)">Painting</span>
+          <span class="tag" onclick="toggleTag(this)">Running</span>
+          <span class="tag" onclick="toggleTag(this)">Poker</span>
+          <span class="tag" onclick="toggleTag(this)">Photography</span>
+          <span class="tag" onclick="toggleTag(this)">Reading</span>
+          <span class="tag" onclick="toggleTag(this)">Hiking</span>
+          <span class="tag" onclick="toggleTag(this)">Fencing</span>
+          <span class="tag" onclick="toggleTag(this)">Wine tasting</span>
+          <span class="tag" onclick="toggleTag(this)">Theatre</span>
+          <span class="tag" onclick="toggleTag(this)">Hunting</span>
+          <span class="tag" onclick="toggleTag(this)">Collecting</span>
+          <span class="tag" onclick="toggleTag(this)">Sailing</span>
+        </div>
+      </div>
+      <div class="form-field">
+        <label>Secrets &amp; backstory (optional)</label>
+        <textarea id="char-note" placeholder="Owes money to everyone… once disappeared for six months… keeps a locked diary…"></textarea>
+      </div>
+      <button class="btn-primary" style="font-size:1rem;padding:.75rem;" onclick="addChar()">+ Add to the cast</button>
+    </div>
+
+    <div>
+      <div class="section-title">The cast <span class="count" id="cast-count"></span></div>
+      <div class="char-grid" id="char-list"></div>
+      <p class="warning" id="cast-hint" style="display:none;">Add at least 3 characters before generating a mystery.</p>
+    </div>
+  </div>
+
+  <!-- GENERATE -->
+  <div class="panel" id="panel-generate">
+    <div id="gen-form">
+      <div class="paper">
+        <div class="section-title">Mystery settings</div>
+        <div class="form-grid">
+          <div class="form-field">
+            <label>Location</label>
+            <select id="gen-setting">
+              <option>Country house</option>
+              <option>Luxury yacht</option>
+              <option>London townhouse</option>
+              <option>Remote village pub</option>
+              <option>Stately manor</option>
+              <option>Art gallery</option>
+              <option>Hotel ballroom</option>
+              <option>University library</option>
+              <option>Science laboratory</option>
+              <option>Private members club</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>Era</label>
+            <select id="gen-era">
+              <option>1920s</option>
+              <option>1940s</option>
+              <option>Victorian</option>
+              <option>Present day</option>
+              <option>1970s</option>
+              <option>Edwardian</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-field">
+          <label>Tone</label>
+          <div class="tags-wrap" id="tone-tags">
+            <span class="tag on" onclick="setTone(this)">Classic whodunit</span>
+            <span class="tag" onclick="setTone(this)">Dark &amp; gritty</span>
+            <span class="tag" onclick="setTone(this)">Cosy mystery</span>
+            <span class="tag" onclick="setTone(this)">Comedic</span>
+            <span class="tag" onclick="setTone(this)">Gothic thriller</span>
+            <span class="tag" onclick="setTone(this)">Noir</span>
+          </div>
+        </div>
+      </div>
+      <p class="warning" id="gen-warn" style="display:none;">You need at least 3 characters. Go to the Characters tab first.</p>
+      <button class="btn-primary" id="gen-btn" onclick="generate()">Generate the case file</button>
+    </div>
+    <div id="gen-loading" style="display:none;">
+      <div class="loading-wrap">
+        <div class="spinner"></div>
+        <p class="loading-msg" id="load-msg">The inspector surveys the scene…</p>
+      </div>
+    </div>
+    <div id="gen-result" style="display:none;"></div>
+  </div>
+
+  <!-- SAVED -->
+  <div class="panel" id="panel-saved">
+    <div class="paper">
+      <div class="section-title">Case archive <span class="count" id="saved-count"></span></div>
+      <div id="saved-list"></div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+let characters = [], savedCases = [], selColor = '#8b1a1a', selTone = 'Classic whodunit', solRevealed = false;
+
+// Persist
+function save(k,v){ try{localStorage.setItem(k,JSON.stringify(v));}catch(e){} }
+function load(k){ try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch(e){return null;} }
+
+characters = load('mm_chars') || [];
+savedCases = load('mm_saved') || [];
+
+// ── API KEY MANAGEMENT ──────────────────────────────────────────────
+function getKey(){ return load('mm_apikey') || ''; }
+function updateKeyIndicator(){
+  const ind = document.getElementById('key-indicator');
+  if(!ind) return;
+  const k = getKey();
+  if(k){ ind.className='key-indicator set no-print'; ind.textContent='⚷ Key saved'; }
+  else { ind.className='key-indicator unset no-print'; ind.textContent='⚷ API Key'; }
+}
+function openKeyModal(){
+  const modal = document.getElementById('key-modal');
+  const inp = document.getElementById('key-input');
+  const k = getKey();
+  inp.value = k || '';
+  inp.type = 'password';
+  document.getElementById('key-toggle-btn').textContent = 'show';
+  document.getElementById('key-status').textContent = k ? '✓ Key is saved' : '';
+  document.getElementById('key-status').className = k ? 'key-status ok' : 'key-status';
+  modal.style.display = 'flex';
+}
+function closeKeyModal(){ document.getElementById('key-modal').style.display='none'; }
+function toggleKeyVis(){
+  const inp = document.getElementById('key-input');
+  const btn = document.getElementById('key-toggle-btn');
+  if(inp.type==='password'){ inp.type='text'; btn.textContent='hide'; }
+  else { inp.type='password'; btn.textContent='show'; }
+}
+function saveKey(){
+  const val = document.getElementById('key-input').value.trim();
+  if(!val){ document.getElementById('key-status').textContent='Please enter a key.'; document.getElementById('key-status').className='key-status err'; return; }
+  if(!val.startsWith('sk-ant-')){ document.getElementById('key-status').textContent='That does not look like a valid Anthropic key (should start with sk-ant-).'; document.getElementById('key-status').className='key-status err'; return; }
+  save('mm_apikey', val);
+  document.getElementById('key-status').textContent='✓ Key saved successfully!';
+  document.getElementById('key-status').className='key-status ok';
+  updateKeyIndicator();
+  setTimeout(closeKeyModal, 1200);
+}
+function clearKey(){
+  localStorage.removeItem('mm_apikey');
+  document.getElementById('key-input').value='';
+  document.getElementById('key-status').textContent='Key cleared.';
+  document.getElementById('key-status').className='key-status';
+  updateKeyIndicator();
+}
+// Close modal on backdrop click
+document.getElementById('key-modal').addEventListener('click', function(e){ if(e.target===this) closeKeyModal(); });
+updateKeyIndicator();
+
+// Nav
+function showPanel(name){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  const idx = ['characters','generate','saved'].indexOf(name);
+  document.querySelectorAll('.nav-btn')[idx].classList.add('active');
+  if(name==='generate') checkReady();
+  if(name==='saved') renderSaved();
+}
+
+// Color picker
+document.querySelectorAll('.col-dot').forEach(d=>{
+  d.addEventListener('click',()=>{
+    document.querySelectorAll('.col-dot').forEach(x=>x.classList.remove('on'));
+    d.classList.add('on'); selColor=d.dataset.c;
+  });
+});
+
+// Tags
+function toggleTag(el){ el.classList.toggle('on'); }
+function setTone(el){ document.querySelectorAll('#tone-tags .tag').forEach(t=>t.classList.remove('on')); el.classList.add('on'); selTone=el.textContent.trim(); }
+
+// Add character
+function initials(n){ return n.trim().split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2); }
+function addChar(){
+  const name=document.getElementById('char-name').value.trim();
+  if(!name){alert('Please enter a name.');return;}
+  const traits=[...document.querySelectorAll('#trait-tags .tag.on')].map(t=>t.textContent.trim());
+  const hobbies=[...document.querySelectorAll('#hobby-tags .tag.on')].map(t=>t.textContent.trim());
+  const note=document.getElementById('char-note').value.trim();
+  characters.push({id:Date.now(),name,color:selColor,traits,hobbies,note});
+  save('mm_chars',characters);
+  document.getElementById('char-name').value='';
+  document.getElementById('char-note').value='';
+  document.querySelectorAll('#trait-tags .tag.on,#hobby-tags .tag.on').forEach(t=>t.classList.remove('on'));
+  renderChars();
+}
+function removeChar(id){ characters=characters.filter(c=>c.id!==id); save('mm_chars',characters); renderChars(); }
+
+function renderChars(){
+  const el=document.getElementById('char-list');
+  const hint=document.getElementById('cast-hint');
+  const count=document.getElementById('cast-count');
+  count.textContent=characters.length?`(${characters.length})`:'';
+  hint.style.display=characters.length>0&&characters.length<3?'':'none';
+  if(!characters.length){el.innerHTML='<p class="empty">No characters yet — add your friends above.</p>';return;}
+  el.innerHTML=characters.map(c=>`
+    <div class="char-card">
+      <button class="char-remove" onclick="removeChar(${c.id})" title="Remove">×</button>
+      <div class="char-avatar" style="background:${c.color}20;color:${c.color};border-color:${c.color}">${initials(c.name)}</div>
+      <div class="char-name">${c.name}</div>
+      <div>${c.traits.map(t=>`<span class="pill pill-r">${t}</span>`).join('')}${c.hobbies.map(h=>`<span class="pill pill-g">${h}</span>`).join('')}</div>
+      ${c.note?`<div class="char-note">"${c.note}"</div>`:''}
+    </div>`).join('');
+}
+renderChars();
+
+// Generate
+function checkReady(){
+  const w=document.getElementById('gen-warn'), b=document.getElementById('gen-btn');
+  if(characters.length<3){w.style.display='';b.disabled=true;}
+  else{w.style.display='none';b.disabled=false;}
+}
+
+const loadMsgs=['The inspector surveys the scene…','Interviewing reluctant witnesses…','Dusting for fingerprints…','Constructing the timeline…','The killer is almost unmasked…'];
+let loadIdx=0, loadTmr;
+
+async function generate(){
+  if(characters.length<3)return;
+  document.getElementById('gen-form').style.display='none';
+  document.getElementById('gen-result').style.display='none';
+  document.getElementById('gen-loading').style.display='';
+  loadIdx=0; document.getElementById('load-msg').textContent=loadMsgs[0];
+  loadTmr=setInterval(()=>{loadIdx=Math.min(loadIdx+1,loadMsgs.length-1);document.getElementById('load-msg').textContent=loadMsgs[loadIdx];},2800);
+
+  const setting=document.getElementById('gen-setting').value;
+  const era=document.getElementById('gen-era').value;
+  const charDesc=characters.map(c=>`${c.name}: traits=[${c.traits.join(',')||'none'}], hobbies=[${c.hobbies.join(',')||'none'}]${c.note?`, note="${c.note}"`:''}` ).join('\n');
+
+  const prompt=`You are a murder mystery writer. Create a murder mystery case file. Tone: "${selTone}". Setting: "${setting}", Era: "${era}".
+
+Characters:
+${charDesc}
+
+Return ONLY valid JSON, no markdown, no backticks, no preamble:
+{"title":"string","victim":"one of the character names","setting_description":"2 sentences","time_of_death":"string","manner_of_death":"string","narrative":"3 sentence dramatic opening","suspects":[{"name":"string","role":"string","alibi":"string","motive":"string"}],"clues":[{"number":1,"location":"string","description":"string"},{"number":2,"location":"string","description":"string"},{"number":3,"location":"string","description":"string"},{"number":4,"location":"string","description":"string"},{"number":5,"location":"string","description":"string"}],"killer":"character name","solution":"3-4 sentences explaining how and why, referencing their traits/hobbies and clues","real_case_query":"search query for a real famous murder case that inspired this"}
+
+Rules: victim and all suspects must be from the character list. Use their traits and hobbies in motives and alibis. Make clues clever and fair.`;
+
+  try {
+    const apiKey = getKey();
+    if(!apiKey){ clearInterval(loadTmr); document.getElementById('gen-loading').style.display='none'; document.getElementById('gen-form').style.display=''; openKeyModal(); return; }
+    const resp=await fetch('https://sneha1--c7718376471a11f1bd9342b51c65c3df.web.val.run',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})
+    });
+    if(!resp.ok){ const errText=await resp.text(); throw new Error('API error '+resp.status+': '+errText); }
+    const data=await resp.json();
+    clearInterval(loadTmr);
+    if(data.error){ if(data.error.type==='authentication_error'){ clearKey(); openKeyModal(); document.getElementById('key-status').textContent='Invalid API key — please check and re-enter.'; document.getElementById('key-status').className='key-status err'; return; } throw new Error(data.error.message); }
+    const text=data.content.filter(b=>b.type==='text').map(b=>b.text).join('');
+    const clean=text.replace(/```json|```/g,'').trim();
+    const c=JSON.parse(clean);
+    c.date=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+    c.id=Date.now();
+    solRevealed=false;
+    savedCases.unshift(c);
+    if(savedCases.length>30)savedCases=savedCases.slice(0,30);
+    save('mm_saved',savedCases);
+    document.getElementById('gen-loading').style.display='none';
+    renderCase(c);
+  } catch(err) {
+    clearInterval(loadTmr);
+    document.getElementById('gen-loading').style.display='none';
+    document.getElementById('gen-form').style.display='';
+    alert('Failed to generate. Check your connection and try again.\n\n'+err.message);
+  }
+}
+
+function renderCase(c){
+  solRevealed=false;
+  const el=document.getElementById('gen-result');
+  el.style.display='';
+  el.innerHTML=`
+  <div class="cf-toolbar no-print">
+    <button class="btn-secondary" onclick="window.print()">Print / Save PDF</button>
+    <button class="btn-secondary" onclick="backToForm()">New mystery</button>
+    <button class="btn-secondary" onclick="showPanel('saved')">Case archive</button>
+    ${c.real_case_query?`<a class="real-case-link" href="https://www.google.com/search?q=${encodeURIComponent(c.real_case_query)}" target="_blank" rel="noopener">Inspired by a real case ↗</a>`:''}
+  </div>
+  <div class="case-paper">
+    <div class="cf-stamp">Confidential</div>
+    <div class="cf-header">
+      <div class="cf-eyebrow">Official Case File &nbsp;·&nbsp; ${c.date}</div>
+      <div class="cf-title">${c.title}</div>
+      <div class="cf-meta">Victim: ${c.victim}</div>
+    </div>
+
+    <div class="cf-vitals">
+      <div class="cf-vital"><div class="cf-vital-label">Time of death</div><div class="cf-vital-val">${c.time_of_death}</div></div>
+      <div class="cf-vital"><div class="cf-vital-label">Manner</div><div class="cf-vital-val">${c.manner_of_death}</div></div>
+      <div class="cf-vital"><div class="cf-vital-label">Location</div><div class="cf-vital-val">${document.getElementById('gen-setting').value}</div></div>
+    </div>
+
+    <div class="cf-section">
+      <div class="cf-section-title">Incident report</div>
+      <div class="cf-body"><p>${c.setting_description}</p><p>${c.narrative}</p></div>
+    </div>
+
+    <div class="cf-section">
+      <div class="cf-section-title">Suspects</div>
+      <table class="suspect-table">
+        <thead><tr><th>Name</th><th>Role</th><th>Motive</th><th>Alibi</th></tr></thead>
+        <tbody>
+          ${(c.suspects||[]).map(s=>`<tr><td class="suspect-name-cell">${s.name}</td><td>${s.role}</td><td>${s.motive}</td><td><em>${s.alibi}</em></td></tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="cf-section">
+      <div class="cf-section-title">Evidence &amp; clues</div>
+      <ul class="clue-list">
+        ${(c.clues||[]).map(cl=>`
+          <li class="clue-item">
+            <div class="clue-num">${cl.number}</div>
+            <div><div class="clue-loc">${cl.location}</div><div class="clue-desc">${cl.description}</div></div>
+          </li>`).join('')}
+      </ul>
+    </div>
+
+    <div class="cf-section">
+      <div class="cf-section-title">Solution — detective's verdict</div>
+      <div class="solution-wrap" onclick="revealSol()" id="sol-wrap">
+        <div class="solution-inner blurred" id="sol-inner">
+          <div class="solution-killer">Murderer: ${c.killer}</div>
+          <div class="solution-text">${c.solution}</div>
+        </div>
+        <div class="solution-reveal-label" id="sol-label">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          Click to reveal
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function revealSol(){
+  solRevealed=true;
+  const inner=document.getElementById('sol-inner');
+  const label=document.getElementById('sol-label');
+  if(inner) inner.classList.remove('blurred');
+  if(label) label.remove();
+  const wrap=document.getElementById('sol-wrap');
+  if(wrap) wrap.style.cursor='default';
+}
+
+function backToForm(){
+  document.getElementById('gen-result').style.display='none';
+  document.getElementById('gen-form').style.display='';
+  checkReady();
+}
+
+// Saved
+function renderSaved(){
+  const el=document.getElementById('saved-list');
+  const count=document.getElementById('saved-count');
+  count.textContent=savedCases.length?`(${savedCases.length})`:'';
+  if(!savedCases.length){el.innerHTML='<p class="empty">No cases in the archive yet.</p>';return;}
+  el.innerHTML=savedCases.map((c,i)=>`
+    <div class="saved-item">
+      <div>
+        <div class="saved-title">${c.title}</div>
+        <div class="saved-meta">${c.date} &nbsp;·&nbsp; Victim: ${c.victim}</div>
+      </div>
+      <div class="saved-actions">
+        <button class="btn-secondary" onclick="viewSaved(${i})">Open</button>
+        <button class="btn-secondary" style="color:var(--blood)" onclick="delSaved(${i})">Delete</button>
+      </div>
+    </div>`).join('');
+}
+renderSaved();
+
+function viewSaved(i){
+  showPanel('generate');
+  document.getElementById('gen-form').style.display='none';
+  renderCase(savedCases[i]);
+  document.getElementById('gen-setting').value = savedCases[i].location || document.getElementById('gen-setting').value;
+}
+function delSaved(i){ if(!confirm('Delete this case file?'))return; savedCases.splice(i,1); save('mm_saved',savedCases); renderSaved(); }
+</script>
+</body>
+</html>
