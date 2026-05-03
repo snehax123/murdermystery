@@ -488,10 +488,10 @@
 <div class="modal-backdrop" id="key-modal" style="display:none;">
   <div class="modal-box">
     <div class="modal-title">API Key Setup</div>
-    <p class="modal-sub">This app uses the Anthropic API to generate mysteries. You need a free API key — it stays in your browser only and is never shared.</p>
+    <p class="modal-sub">This app uses OpenRouter to generate mysteries. You need a free API key — it stays in your browser only and is never sent anywhere except OpenRouter.</p>
     <div class="modal-steps">
-      <div class="modal-step"><div class="modal-step-num">1</div><div>Visit <a class="modal-link" href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a> and create a free account.</div></div>
-      <div class="modal-step"><div class="modal-step-num">2</div><div>Go to <strong>API Keys</strong> and click <strong>Create Key</strong>. Copy it.</div></div>
+      <div class="modal-step"><div class="modal-step-num">1</div><div>Visit <a class="modal-link" href="https://openrouter.ai" target="_blank" rel="noopener">openrouter.ai</a> and sign up for a free account.</div></div>
+      <div class="modal-step"><div class="modal-step-num">2</div><div>Go to <strong>Keys</strong> in the top menu and click <strong>Create Key</strong>. Copy it (starts with sk-or-).</div></div>
       <div class="modal-step"><div class="modal-step-num">3</div><div>Paste it below and click Save.</div></div>
     </div>
     <div class="key-input-wrap">
@@ -665,7 +665,6 @@ let characters = [], savedCases = [], selColor = '#8b1a1a', selTone = 'Classic w
 function save(k,v){ try{localStorage.setItem(k,JSON.stringify(v));}catch(e){} }
 function load(k){ try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch(e){return null;} }
 
-if(!load('mm_apikey')) save('mm_apikey','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');
 characters = load('mm_chars') || [];
 savedCases = load('mm_saved') || [];
 
@@ -704,6 +703,8 @@ function saveKey(){
   document.getElementById('key-status').textContent='✓ Key saved successfully!';
   document.getElementById('key-status').className='key-status ok';
   updateKeyIndicator();
+// Auto-open key modal if no key set yet
+if(!getKey()) setTimeout(openKeyModal, 400);
   setTimeout(closeKeyModal, 1200);
 }
 function clearKey(){
