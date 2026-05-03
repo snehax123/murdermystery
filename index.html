@@ -495,7 +495,7 @@
       <div class="modal-step"><div class="modal-step-num">3</div><div>Paste it below and click Save.</div></div>
     </div>
     <div class="key-input-wrap">
-      <input type="password" id="key-input" placeholder="sk-ant-api03-..." autocomplete="off" spellcheck="false">
+      <input type="password" id="key-input" placeholder="sk-or-..." autocomplete="off" spellcheck="false">
       <button class="key-toggle" onclick="toggleKeyVis()" id="key-toggle-btn">show</button>
     </div>
     <p class="modal-note">Your key is saved to <strong>your browser only</strong> (localStorage). Nobody else can see it. You can clear it any time from this screen.</p>
@@ -665,6 +665,7 @@ let characters = [], savedCases = [], selColor = '#8b1a1a', selTone = 'Classic w
 function save(k,v){ try{localStorage.setItem(k,JSON.stringify(v));}catch(e){} }
 function load(k){ try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch(e){return null;} }
 
+if(!load('mm_apikey')) save('mm_apikey','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');
 characters = load('mm_chars') || [];
 savedCases = load('mm_saved') || [];
 
@@ -698,7 +699,7 @@ function toggleKeyVis(){
 function saveKey(){
   const val = document.getElementById('key-input').value.trim();
   if(!val){ document.getElementById('key-status').textContent='Please enter a key.'; document.getElementById('key-status').className='key-status err'; return; }
-  if(!val.startsWith('sk-ant-')){ document.getElementById('key-status').textContent='That does not look like a valid Anthropic key (should start with sk-ant-).'; document.getElementById('key-status').className='key-status err'; return; }
+  if(!val.startsWith('sk-or-')){ document.getElementById('key-status').textContent='That does not look like a valid Anthropic key (should start with sk-or-).'; document.getElementById('key-status').className='key-status err'; return; }
   save('mm_apikey', val);
   document.getElementById('key-status').textContent='✓ Key saved successfully!';
   document.getElementById('key-status').className='key-status ok';
@@ -809,16 +810,16 @@ Rules: victim and all suspects must be from the character list. Use their traits
   try {
     const apiKey = getKey();
     if(!apiKey){ clearInterval(loadTmr); document.getElementById('gen-loading').style.display='none'; document.getElementById('gen-form').style.display=''; openKeyModal(); return; }
-    const resp=await fetch('https://sneha1--c7718376471a11f1bd9342b51c65c3df.web.val.run',{
+    const resp=await fetch('https://openrouter.ai/api/v1/chat/completions',{
       method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey,'HTTP-Referer':'https://snehax123.github.io','X-Title':'Murder at Midnight'},
+      body:JSON.stringify({model:'meta-llama/llama-3.3-70b-instruct:free',messages:[{role:'user',content:prompt}]})
     });
     if(!resp.ok){ const errText=await resp.text(); throw new Error('API error '+resp.status+': '+errText); }
     const data=await resp.json();
     clearInterval(loadTmr);
-    if(data.error){ if(data.error.type==='authentication_error'){ clearKey(); openKeyModal(); document.getElementById('key-status').textContent='Invalid API key — please check and re-enter.'; document.getElementById('key-status').className='key-status err'; return; } throw new Error(data.error.message); }
-    const text=data.content.filter(b=>b.type==='text').map(b=>b.text).join('');
+    if(data.error){ if(data.error.code===401||data.error.code===403){ clearKey(); openKeyModal(); document.getElementById('key-status').textContent='Invalid API key — please check and re-enter.'; document.getElementById('key-status').className='key-status err'; return; } throw new Error(data.error.message); }
+    const text=data.choices[0].message.content;
     const clean=text.replace(/```json|```/g,'').trim();
     const c=JSON.parse(clean);
     c.date=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
