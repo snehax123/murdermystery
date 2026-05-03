@@ -698,7 +698,7 @@ function toggleKeyVis(){
 function saveKey(){
   const val = document.getElementById('key-input').value.trim();
   if(!val){ document.getElementById('key-status').textContent='Please enter a key.'; document.getElementById('key-status').className='key-status err'; return; }
-  if(!val.startsWith('sk-or-')){ document.getElementById('key-status').textContent='That does not look like a valid Anthropic key (should start with sk-or-).'; document.getElementById('key-status').className='key-status err'; return; }
+  if(!val.startsWith('sk-or-')){ document.getElementById('key-status').textContent='That does not look like a valid OpenRouter key (should start with sk-or-).'; document.getElementById('key-status').className='key-status err'; return; }
   save('mm_apikey', val);
   document.getElementById('key-status').textContent='✓ Key saved successfully!';
   document.getElementById('key-status').className='key-status ok';
@@ -819,7 +819,7 @@ Rules: victim and all suspects must be from the character list. Use their traits
     if(!resp.ok){ const errText=await resp.text(); throw new Error('API error '+resp.status+': '+errText); }
     const data=await resp.json();
     clearInterval(loadTmr);
-    if(data.error){ if(data.error.code===401||data.error.code===403){ clearKey(); openKeyModal(); document.getElementById('key-status').textContent='Invalid API key — please check and re-enter.'; document.getElementById('key-status').className='key-status err'; return; } throw new Error(data.error.message); }
+    if(data.error){ if(data.error.code===401||data.error.code===403||String(data.error.message).includes('not found')||String(data.error.message).includes('invalid')){ clearKey(); openKeyModal(); document.getElementById('key-status').textContent='OpenRouter says this key is invalid. Please copy your key again from openrouter.ai/keys'; document.getElementById('key-status').className='key-status err'; return; } throw new Error(data.error.message); }
     const text=data.choices[0].message.content;
     const clean=text.replace(/```json|```/g,'').trim();
     const c=JSON.parse(clean);
